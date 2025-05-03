@@ -26,7 +26,8 @@ namespace apiRESTCheckUsuario.Controllers
             DataSet ds = new DataSet();
             try
             {
-                clsUsuario objUsuario = new clsUsuario(modelo.nombre,
+                clsUsuario objUsuario = new clsUsuario(modelo.cve,
+                                                       modelo.nombre,
                                                        modelo.apellidoPaterno,
                                                        modelo.apellidoMaterno,
                                                        modelo.usuario,
@@ -127,7 +128,7 @@ namespace apiRESTCheckUsuario.Controllers
         }//fin del endpoint
 
 
-        // endpoint para validación para usuarios vwrtpusuario
+        // Endpoint para los usuarios (filtro nombre y usuario)
         [HttpGet]
         [Route("check/usuario/vwRptUsuario")]
         public clsApiStatus vwRptUsuario(string filtro = "")
@@ -140,32 +141,37 @@ namespace apiRESTCheckUsuario.Controllers
 
             try
             {
+                // Crear el objeto del modelo clsUsuario
                 clsUsuario objUsuario = new clsUsuario();
-                ds = objUsuario.vwRptUsuario();
+                ds = objUsuario.vwRptUsuario(); // Obtener todos los usuarios
 
-                // Aplicar filtro si se proporciona
+                // Si se ha proporcionado un filtro, aplicamos el filtro en nombre y usuario
                 DataTable dt = ds.Tables[0];
                 if (!string.IsNullOrEmpty(filtro))
                 {
+                    // Filtro para buscar en 'nombre' o 'usuario'
+                    string filtroFinal = $"nombre LIKE '%{filtro}%' OR usuario LIKE '%{filtro}%'";
+
+                    // Aplicar el filtro al DataView
                     DataView dv = new DataView(dt);
-                    dv.RowFilter = $"nombre LIKE '%{filtro}%'"; // Filtra por coincidencias parciales en 'nombre'
-                    dt = dv.ToTable(); // Convierte el DataView filtrado en un DataTable
+                    dv.RowFilter = filtroFinal;
+                    dt = dv.ToTable(); // Convertir el DataView filtrado en DataTable
                 }
 
-                //configuracion del objeto de salida 
+                // Configuración del objeto de salida 
                 objRespuesta.statusExec = true;
-                objRespuesta.ban = dt.Rows.Count;
+                objRespuesta.ban = dt.Rows.Count; // Número de registros filtrados
                 objRespuesta.msg = "Reporte consultado exitosamente";
 
                 // Convertir el DataTable filtrado a JSON
                 string jsonString = JsonConvert.SerializeObject(dt, Formatting.Indented);
                 jsonResp = JObject.Parse($"{{\"{dt.TableName}\": {jsonString}}}");
 
-                objRespuesta.datos = jsonResp;
+                objRespuesta.datos = jsonResp; // Asignar los datos a la respuesta
             }
             catch (Exception ex)
             {
-                // Configuración del objeto de salida
+                // En caso de error, configurar el objeto de salida
                 objRespuesta.statusExec = false;
                 objRespuesta.ban = -1;
                 objRespuesta.msg = "Error de conexión con el servicio de datos";
@@ -173,9 +179,10 @@ namespace apiRESTCheckUsuario.Controllers
                 objRespuesta.datos = jsonResp;
             }
 
-            //retorno del objeto de salida
+            // Retorno del objeto de salida
             return objRespuesta;
         }
+
 
 
         // endpoint para validación para usuarios vwrtpusuario
@@ -222,6 +229,124 @@ namespace apiRESTCheckUsuario.Controllers
             }
 
 
+        //endpoint ELIMINAR
+        [HttpPost]
+        [Route("check/usuario/spDelUsuario")]
+        public clsApiStatus deleteUsuario([FromBody] clsUsuario modelo)
+        {
+            clsApiStatus objRespuesta = new clsApiStatus();
+            JObject jsonResp = new JObject();
+            DataSet ds = new DataSet();
 
+            try
+            {
+                // Usa directamente el modelo que ya tiene la cve del usuario
+                ds = modelo.spDelUsuario();
+
+                objRespuesta.statusExec = true;
+                objRespuesta.ban = int.Parse(ds.Tables[0].Rows[0][0].ToString());
+
+                if (objRespuesta.ban == 1)
+                {
+                    objRespuesta.msg = "Usuario No eliminado";
+                    jsonResp.Add("usu_cve", ds.Tables[0].Rows[0][1].ToString());
+                    objRespuesta.datos = jsonResp;
+                }
+                else
+                {
+                    objRespuesta.msg = "Usuario Eliminado exitosamente";
+                    jsonResp.Add("msgData", "Usuario no Eliminado, verificar");
+                    objRespuesta.datos = jsonResp;
+                }
+            }
+            catch (Exception ex)
+            {
+                objRespuesta.statusExec = false;
+                objRespuesta.ban = -1;
+                objRespuesta.msg = "Error de conexion con el servicio de datos";
+                jsonResp.Add("msgData", ex.Message.ToString());
+                objRespuesta.datos = jsonResp;
+            }
+
+            return objRespuesta;
+        }
+
+
+        //CONSULTA
+        [HttpGet]
+        [Route("check/usuario/vwRptUsuariocve")]
+        public clsApiStatus vwRptUsuariocveo(string filtro)
+        {
+            // -----------------------------------------
+            clsApiStatus objRespuesta = new clsApiStatus();
+            JObject jsonResp = new JObject();
+            // -----------------------------------------
+            DataSet ds = new DataSet();
+            try
+            {
+                clsUsuario objUsuario = new clsUsuario();
+                ds = objUsuario.vwRptUsuariocve(filtro);
+                //Configuracion del objSalida
+                objRespuesta.statusExec = true;
+                objRespuesta.ban = ds.Tables[0].Rows.Count;
+                objRespuesta.msg = "Reporte consultado exitosamente";
+                //Formatear los datos recibidos (Data set) para 
+                //enviarlos de salida(JSON)
+                string jsonString = JsonConvert.SerializeObject(ds.Tables[0], Formatting.Indented);
+                jsonResp = JObject.Parse($"{{\"{ds.Tables[0].TableName}\": {jsonString}}}");
+                objRespuesta.datos = jsonResp;
+            }
+            catch (Exception ex)
+            {
+                //Configuracion del objeto de salida
+                objRespuesta.statusExec = false;
+                objRespuesta.ban = -1;
+                objRespuesta.msg = "Error de conexion con el servicio de datos";
+                jsonResp.Add("msData", ex.Message.ToString());
+                objRespuesta.datos = jsonResp;
+            }
+            return objRespuesta;
+        }
+
+        //MODIFICAR
+        [HttpPost]
+        [Route("check/usuario/spUpdUsuario")]
+        public clsApiStatus UpdUsuario([FromBody] clsUsuario modelo)
+        {
+            clsApiStatus objRespuesta = new clsApiStatus();
+            JObject jsonResp = new JObject();
+            DataSet ds = new DataSet();
+
+            try
+            {
+                ds = modelo.spUpdUsuario();
+
+                objRespuesta.statusExec = true;
+                objRespuesta.ban = int.Parse(ds.Tables[0].Rows[0][0].ToString());
+
+                if (objRespuesta.ban == 1)
+                {
+                    objRespuesta.msg = "Usuario actualizado exitosamente";
+                    jsonResp.Add("usu_cve", ds.Tables[0].Rows[0][1].ToString());
+                    objRespuesta.datos = jsonResp;
+                }
+                else
+                {
+                    objRespuesta.msg = "No se actualizó el usuario, verificar datos";
+                    jsonResp.Add("msgData", "Usuario no modificado");
+                    objRespuesta.datos = jsonResp;
+                }
+            }
+            catch (Exception ex)
+            {
+                objRespuesta.statusExec = false;
+                objRespuesta.ban = -1;
+                objRespuesta.msg = "Error de conexión con el servicio de datos";
+                jsonResp.Add("msgData", ex.Message.ToString());
+                objRespuesta.datos = jsonResp;
+            }
+
+            return objRespuesta;
+        }
     }
 }
